@@ -47,6 +47,10 @@ else:
     model = ChatOpenAI(
         model="gpt-4o-mini", base_url="https://models.inference.ai.azure.com", api_key=os.environ["GITHUB_TOKEN"]
     )
+    embeddings_model = ChatOpenAI(
+        model="text-embedding-ada-002", base_url="https://models.inference.ai.azure.com", api_key=os.environ["GITHUB_TOKEN"]
+    )
+
 
 model = model.bind_tools(tools, parallel_tool_calls=False)
 
@@ -63,7 +67,6 @@ def should_continue(state):
     # Otherwise if there is, we continue
     else:
         return "continue"
-
 
 # Define the function that calls the model
 def call_model(state):
@@ -124,3 +127,4 @@ config = {"configurable": {"thread_id": "1"}}
 input_message = HumanMessage(content="Can you play Taylor Swift's most popular song?")
 for event in app.stream({"messages": [input_message]}, config, stream_mode="values"):
     event["messages"][-1].pretty_print()
+
