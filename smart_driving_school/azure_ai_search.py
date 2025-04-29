@@ -5,13 +5,9 @@ from langchain_openai import ChatOpenAI
 from azure.search.documents import SearchClient
 from langchain_openai import AzureOpenAIEmbeddings
 from azure.core.credentials import AzureKeyCredential
-from collections import OrderedDict
-import requests
-from langchain.schema import Document
-from langchain_community.vectorstores import FAISS
-from langchain.chains import RetrievalQAWithSourcesChain
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores.azuresearch import AzureSearch
+from azure.search.documents import SearchClient
+from azure.search.documents.models import VectorizedQuery
+from typing import List, Dict
 
 # Load environment variables
 load_dotenv(override=True)
@@ -60,102 +56,26 @@ def create_llm():
         api_key=GITHUB_TOKEN
     )
 
-# === Azure AI Search ===
-def search_documents(question):
-    url = f"{SEARCH_SERVICE_ENDPOINT.rstrip('/')}/indexes/{SEARCH_SERVICE_INDEX_NAME}/docs"
-    params = {
-        'api-version': SEARCH_SERVICE_API_VERSION,
-        'search': question,
-        'select': '*',
-        '$top': 5,
-        '$count': 'true'
-    }
-    resp = requests.get(url, headers=HEADERS, params=params)
-    return resp.json()
-
-def filter_documents(search_results):
-    """Filter documents by relevance score."""
-    documents = OrderedDict()
-    for result in search_results['value']:
-        if result['@search.score'] > 1:  # Adjusted threshold (was 10, overly strict)
-            documents[result['metadata_storage_path']] = {
-                'chunks': result['pages'],
-                'score': result['@search.score'],
-                'file_name': result['metadata_storage_name']
-            }
-    return documents
-
-# === Text Splitting ===
-def chunk_documents(raw_docs):
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=100,
-        separators=["\n\n", "\n", ".", " "],
-        length_function=len
-    )
-    return splitter.split_documents(raw_docs)
-
-# === Vector Store ===
-def store_documents(docs, embeddings):
-    return FAISS.from_documents(docs, embeddings)
-
-# # === LangChain QA ===
-def answer_with_langchain(vector_store, question):
-    llm = create_llm()
-    retriever = vector_store.as_retriever(search_kwargs={"k": 4})
-    chain = RetrievalQAWithSourcesChain.from_chain_type(
-        llm=llm,
-        chain_type='stuff',
-        retriever=retriever,
-        return_source_documents=True
-    )
-    return chain.invoke({'question': question})
-
-# === Main Workflow ===
-def main():
-    QUESTION = 'Tell me about Driver Knowledge Test (DKT)'
-
-    # Step 1: Search via Azure AI Search
-    search_results = search_documents(QUESTION)
-    documents = filter_documents(search_results)
-
-    print('Total Documents Found: {}, Top Returned: {}'.format(
-        search_results.get('@odata.count', 0), len(documents)))
-
-    # Step 2: Convert to LangChain Documents
-    raw_docs = []
-    for key, value in documents.items():
-        raw_docs.append(Document(page_content=value['chunks'],metadata={"source": value["file_name"]}))
-
-    # Step 3: Split documents into smaller chunks
-    docs = chunk_documents(raw_docs)
-
-    # Step 4: Create Embeddings and Vector Store
-    embeddings = create_embeddings()
-    # vector_store = store_documents(docs, embeddings)
-
-    # Specify additional properties for the Azure client such as the following 
-    # https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/core/azure-core/README.md#configurations
-    vector_store: AzureSearch = AzureSearch(
-        azure_search_endpoint=SEARCH_SERVICE_ENDPOINT,
-        azure_search_key=SEARCH_SERVICE_KEY,
-        index_name=SEARCH_SERVICE_INDEX_NAME,
-        embedding_function=embeddings.embed_query,
-        # Configure max retries for the Azure client
-        additional_search_client_options={"retry_total": 4},
+def search_documents(search_query: str) -> List[Dict[str, str]]:
+    """
+    Search documents using indexed PDFs about driving lessons stored in Azure AI Search vector store.
+    """
+    search_client = SearchClient(SEARCH_SERVICE_ENDPOINT, SEARCH_SERVICE_INDEX_NAME, credential=credential)
+    search_vector = get_embedding(search_query)
+    
+    results = search_client.search(
+        search_text=search_query,
+        top=5,
+        vector_queries=[VectorizedQuery(vector=search_vector, k_nearest_neighbors=5, fields="text_vector")]
     )
     
-    print(docs[0].page_content)
-    # # Step 5: Answer the question
-    # result = answer_with_langchain(vector_store, QUESTION)
-
-    # print('\nQuestion:', QUESTION)
-    # print('\nAnswer:', result['answer'])
-    # print('\nReferences:\n', result['sources'].replace(",", "\n"))
-    # print(result.keys())
-    # print(result)
+    output = []
+    for doc in results:
+        chunk = doc["chunk"].replace("\n", " ")[:200]
+        score = round(doc['@search.score'], 5)
+        output.append({
+            "score": score,
+            "content": chunk
+        })
     
-# Run the main script
-if __name__ == "__main__":
-    main()
-    print("done")
+    return output
