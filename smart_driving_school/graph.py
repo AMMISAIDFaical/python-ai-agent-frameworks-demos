@@ -84,23 +84,26 @@ def main():
     thread_config = {"configurable": {"thread_id": uuid.uuid4()}}
 
     while True:
-        user_init = input("user answer : ")
-
-        if "user_gave_answer" in graph.get_state(thread_config).values:
-                if graph.get_state(thread_config).values["user_gave_answer"] == True:
-                    # Resume using Command
-                    for chunk in graph.stream(Command(resume=user_init), config=thread_config, stream_mode='values'):
-                        chunk["messages"][-1].pretty_print()
-                        print("\n")
-
-
-        for chunk in graph.stream({"messages": HumanMessage(content=user_init)}, config=thread_config, stream_mode='values'):
-            chunk["messages"][-1].pretty_print()
-            print("\n")
-
+        user_init = input("Hello what would we do today in our cool driving school : ")
+        # Check if the user wants to quit
         if user_init.lower() == "quit":
             print("Exiting the program.")
             break
+        for chunk in graph.stream({"messages": HumanMessage(content=user_init, name="student")}, config=thread_config, stream_mode='values'):
+            chunk["messages"][-1].pretty_print()
+            print("\n")
+
+        # if "user_gave_answer" in graph.get_state(thread_config).values:
+        #         if graph.get_state(thread_config).values["user_gave_answer"] == True:
+        #             # Resume using Command
+        user_init = input("My answer gotta be  : ")
+        for chunk in graph.stream(Command(resume=user_init), config=thread_config, stream_mode='values'):
+            print(user_init)
+            print("\n")
+
+        
+        
+        
 if __name__ == "__main__":
     main()
 
@@ -150,7 +153,7 @@ if __name__ == "__main__":
 
 # graph_builder.add_edge(START, "quiz_agent")
 # graph_builder.add_edge("quiz_agent", "human_node")
-# graph_builder.add_edge("human_node", "teacher_agent")
+# graph_builder.add_edge("human_node", "quiz_agent")
 
 # def main():
 #     # A checkpointer is required for `interrupt` to work.
