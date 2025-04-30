@@ -7,7 +7,7 @@ from state import Quiz
 @tool
 def search_course_documents_tool(query:str):
     """
-    Gets Informations from courses content. 
+    Gets Informations from courses content. and it is used by the teacher agent to search for course documents for the quiz preparation.
     """
     output = search_documents(query)
     return output
@@ -27,6 +27,6 @@ class quiz_history_save_tool(BaseModel):
 
 class teacher_understanding_tool(BaseModel):
     """
-    Used to understand the student's intent and requests.
+    Used only when is needed extra informations.
     """
     clarifying_question: str = Field(description="Teacher's clarifying question")
