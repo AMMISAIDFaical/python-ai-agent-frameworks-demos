@@ -14,3 +14,6 @@ langchain_community
 azure-search-documents
 ipython
 azure-storage-blob
+langchain-ollama
+langchain_experimental
+text_generation

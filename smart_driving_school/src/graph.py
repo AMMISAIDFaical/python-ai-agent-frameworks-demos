@@ -22,7 +22,7 @@ tool_node = ToolNode(tools)
 
 def should_continue(
     state: State
-) -> Literal["call_tool", "quiz_agent", "student_input_node", "__end__"]:
+) -> Literal["call_tool", "quiz_agent", "__end__"]:
     """
     Determines the next step in the workflow based on the state after the teacher agent execution.
 
@@ -35,13 +35,18 @@ def should_continue(
     messages = state["messages"]
     is_asking_for_quiz = state.get("is_asking_for_quiz", False)
     last_message = messages[-1]
+    quiz_topics = state.get("quiz_topics", [])
+    quiz_completed = state.get("quiz_completed", False)
 
     if last_message.content == '' and last_message.tool_calls:
         return "call_tool"
 
     if is_asking_for_quiz:
         return "quiz_agent"
-
+    
+    if quiz_topics == [] and quiz_completed:
+         return "__end__"
+    
     return "__end__"
 
 
@@ -113,6 +118,7 @@ def update_graph(graph,thread_config):
     user_answer = input("provide your answer : ")
     graph.invoke(Command(resume=user_answer), config=thread_config)
     
+
 def main():
     """
     Entry point for the interactive CLI application running the LangGraph workflow.
@@ -120,46 +126,44 @@ def main():
     checkpointer = MemorySaver()
     graph = workflow.compile(checkpointer=checkpointer)
     thread_config = {"configurable": {"thread_id": uuid.uuid4()}}
-    # Initialize the workflow with first user input
-    user_init = input("Hello what would we do today in our cool driving school : ")
-    # graph.invoke({'messages':HumanMessage(content=user_init)}, config=thread_config)
-    for chunk in graph.stream({"messages": HumanMessage(content=user_init)},
-                    config=thread_config,
-                    stream_mode='values'
-                ):
-                    chunk["messages"][-1].pretty_print()
-                    print("\n")
+
+    # Initial user input
+    user_input = input("Hello, what would we do today in our cool driving school: ")
+
+    # Initial graph stream
+    for chunk in graph.stream({"messages": HumanMessage(content=user_input)},
+                              config=thread_config,
+                              stream_mode='values'):
+        print(chunk["messages"][-1].name)
+        chunk["messages"][-1].pretty_print()
+        print("\n")
+
     while True:
-        if user_init.lower() == "quit":
+        if user_input.lower() == "quit":
             print("Exiting the program.")
             break
-        if "messages" in graph.get_state(thread_config).values and graph.get_state(thread_config).values["messages"][-1].name == "quiz_agent":
-            update_graph(graph,thread_config)
+
+        state = graph.get_state(thread_config)
+        messages = state.values.get("messages", [])
+
+        if messages and messages[-1].name == "quiz_agent":
+            update_graph(graph, thread_config)
+            messages = graph.get_state(thread_config).values.get("messages", [])
+            if messages:
+                messages[-1].pretty_print()
         else:
-            user_clf = input("provide your answer : ")
-            if user_init.lower() == "quit":
+            user_input = input("Provide your answer: ")
+            if user_input.lower() == "quit":
                 print("Exiting the program.")
                 break
-            if "messages" in graph.get_state(thread_config).values:
-                for chunk in graph.stream({"messages": HumanMessage(content=user_clf)},
-                    config=thread_config,
-                    stream_mode='values'
-                ):
-                    chunk["messages"][-1].pretty_print()
-                    print("\n")
+
+            for chunk in graph.stream({"messages": HumanMessage(content=user_input)},
+                                      config=thread_config,
+                                      stream_mode='values'):
+                print(chunk["messages"][-1].name)
+                chunk["messages"][-1].pretty_print()
+                print("\n")
+
             
 if __name__ == "__main__":
     main()
-    # graph = workflow.compile()
-
-    # # Generate image bytes
-    # image_bytes = graph.get_graph().draw_mermaid_png(
-    #     draw_method=MermaidDrawMethod.API,
-    # )
-
-    # # Save to file
-    # with open("workflow_graph.png", "wb") as f:
-    #     f.write(image_bytes)
-
-    # # Optionally display in notebook
-    # display(Image(image_bytes))

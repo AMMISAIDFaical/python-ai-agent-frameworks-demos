@@ -27,6 +27,8 @@ def teacher_agent(state: State):
     """
     # getting list of messages
     messages = state.get("messages", [])
+    quiz_history = state.get("quiz_history", [])
+    quiz_completed = state.get("quiz_completed", False)
     # loading the model and binding the tools to it
     model = load_model()
     model = model.bind_tools([
@@ -34,9 +36,11 @@ def teacher_agent(state: State):
         teacher_understanding_tool, # a tool gives the agent ability to ask clarifying questions
         search_course_documents_tool # a tool gives the agent ability to search course documents
     ])
-    # chain and invoking on the recived list of messages can be the first message or list of exchanges
     chain = teacher_prompt | model
-    response = chain.invoke({"messages": messages})
+    response = chain.invoke({
+        "messages": messages,
+        "quiz_history": quiz_history
+    })
 
     # the response can be either a message or a tool call(s)
     for calls in response.tool_calls:
@@ -81,17 +85,18 @@ def quiz_agent(state: State):
                      or None if no quiz is generated.
     """
     messages = state.get("messages", [])
-    last_message = messages[-1] if messages else None
+    last_message = messages[-1]
     quiz_topics = state.get("quiz_topics", [])
     quiz_study_material = state.get("quiz_study_material", "")
     if quiz_topics == []:
         return {
             "messages": AIMessage(
-                content="No quiz topics available. Please ask the teacher for a quiz.",
-                name="quiz_agent", 
+                content="Quiz is finished.",
+                name="quiz_agent"
             ),
             "quiz_topics": quiz_topics,  # Return updated list
-            "quiz_completed": True
+            "quiz_completed": True,
+            "is_asking_for_quiz":False
         }
     # Prepare model and chain
     model = load_model()
@@ -132,6 +137,5 @@ def student_input_node(state: State) -> Command[Literal["quiz_agent"]]:
     """
     last_message = state.get("messages", [])[-1]
     value = interrupt({ "messages": last_message, "sender": "student_input_node" })
-    quiz_completed = state.get("quiz_completed", False)
 
     return Command(update={"messages": HumanMessage(content=value, name="student"),"user_gave_answer": True}, goto="quiz_agent") 

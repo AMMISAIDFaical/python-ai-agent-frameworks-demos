@@ -33,3 +33,4 @@ class State(TypedDict):
     user_gave_answer: bool # {True, False}
     question_answer:List[Dict[str,str]] # {question, answer}
     quiz_completed: bool # {True, False}
+    quiz_history: List[Quiz] # {quiz history}
