@@ -4,12 +4,16 @@ import uuid
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.types import interrupt, Command
+from langgraph.types import  Command
 from langchain_core.messages import HumanMessage
 
 from tools import search_course_documents_tool
-from dl_agents import teacher_agent, quiz_agent, student_input_node
+from ds_agents import teacher_agent, quiz_agent, student_input_node
 from state import State
+
+from IPython.display import Image, display
+from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod, NodeStyles
+
 
 
 tools = [search_course_documents_tool]
@@ -41,7 +45,7 @@ def should_continue(
     return "__end__"
 
 
-def worker_should_continue(state: State) -> Literal["teacher_agent", "call_tool", "student_input_node"]:
+def worker_should_continue(state: State) -> Literal["teacher_agent", "student_input_node"]:
     """
     Determines whether the quiz agent should invoke tools or return control to the teacher/student.
 
@@ -55,10 +59,6 @@ def worker_should_continue(state: State) -> Literal["teacher_agent", "call_tool"
     last_message = messages[-1]
     quiz_completed = state.get("quiz_completed", False)
     quiz_topics = state.get("quiz_topics", [])
-   
-    
-    if last_message.content == '' and last_message.tool_calls:
-        return "call_tool"
     
     if quiz_topics == [] and quiz_completed:
         return "teacher_agent"
@@ -92,7 +92,6 @@ workflow.add_conditional_edges(
     "quiz_agent",
     worker_should_continue,
     {
-        "call_tool": "tool_node",
         "teacher_agent": "teacher_agent",
         "student_input_node": "student_input_node",
     }
@@ -105,7 +104,6 @@ workflow.add_conditional_edges(
     "tool_node",
     lambda x: x["sender"],
     {
-        "quiz_agent": "quiz_agent",
         "teacher_agent": "teacher_agent",
     }
 )
@@ -138,7 +136,10 @@ def main():
         if "messages" in graph.get_state(thread_config).values and graph.get_state(thread_config).values["messages"][-1].name == "quiz_agent":
             update_graph(graph,thread_config)
         else:
-            user_clf = input("provide your answer either  : ")
+            user_clf = input("provide your answer : ")
+            if user_init.lower() == "quit":
+                print("Exiting the program.")
+                break
             if "messages" in graph.get_state(thread_config).values:
                 for chunk in graph.stream({"messages": HumanMessage(content=user_clf)},
                     config=thread_config,
@@ -149,3 +150,16 @@ def main():
             
 if __name__ == "__main__":
     main()
+    # graph = workflow.compile()
+
+    # # Generate image bytes
+    # image_bytes = graph.get_graph().draw_mermaid_png(
+    #     draw_method=MermaidDrawMethod.API,
+    # )
+
+    # # Save to file
+    # with open("workflow_graph.png", "wb") as f:
+    #     f.write(image_bytes)
+
+    # # Optionally display in notebook
+    # display(Image(image_bytes))
