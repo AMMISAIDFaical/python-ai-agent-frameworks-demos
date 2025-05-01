@@ -14,6 +14,9 @@ this repo was forked from "https://github.com/Azure-Samples/python-ai-agent-fram
 3. `smart_driving_school/src/data_uplaoding_az_blob.py` script pushes the used documents to blob storage
 4. `smart_driving_school/src/ds_agents.py` script holds the definition and the logic of each driving school agent. teacher_agent, quiz_agent, student_input_node (to get the user responses)
 
+## 📺 Demo Video
+
+[▶️ Watch the demo video on Google Drive]([https://drive.google.com/file/d/YOUR_FILE_ID/view?usp=sharing](https://drive.google.com/file/d/1mcBiO2WCoheVH5pKHome6_X_DXXPQXRy/view?usp=sharing))
 
 ## Getting Started
 
