@@ -15,7 +15,7 @@ this repo was forked from "https://github.com/Azure-Samples/python-ai-agent-fram
 4. `smart_driving_school/src/ds_agents.py` script holds the definition and the logic of each driving school agent. teacher_agent, quiz_agent, student_input_node (to get the user responses)
 
 ## 📺 Demo Video
-[![Click to watch the demo](https://via.placeholder.com/640x360.png?text=Click+to+Watch+Video)](https://drive.google.com/uc?export=preview&id=FILE_ID)
+[![Click to watch the demo](https://drive.google.com/file/d/1mcBiO2WCoheVH5pKHome6_X_DXXPQXRy/view?usp=sharing)
 
 
 
